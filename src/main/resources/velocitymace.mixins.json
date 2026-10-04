@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.gea69.velocitymace.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MaceItemMixin",
+    "PlayerMixin"
+  ]
+}
