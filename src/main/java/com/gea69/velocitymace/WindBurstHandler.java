@@ -91,7 +91,6 @@ public final class WindBurstHandler {
                 movement =
                         movement.normalize();
             }
-
             Vec3 impulse =
                     new Vec3(
                             0.0D,
