@@ -1,16 +1,26 @@
-package com.gea69.velocitymace;
+        package com.gea69.velocitymace;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
 public final class VelocityMaceAttackContext {
 
-    private static final ThreadLocal<LivingEntity> ATTACKER = new ThreadLocal<>();
-    private static final ThreadLocal<Entity> ATTACK_TARGET = new ThreadLocal<>();
+    private static final ThreadLocal<LivingEntity> ATTACKER =
+            new ThreadLocal<>();
 
-    private static final ThreadLocal<Vec3> ATTACKER_VELOCITY = new ThreadLocal<>();
-    private static final ThreadLocal<Vec3> TARGET_VELOCITY = new ThreadLocal<>();
+    private static final ThreadLocal<Entity> ATTACK_TARGET =
+            new ThreadLocal<>();
+
+    private static final ThreadLocal<Vec3> ATTACKER_VELOCITY =
+            new ThreadLocal<>();
+
+    private static final ThreadLocal<Vec3> TARGET_VELOCITY =
+            new ThreadLocal<>();
+
+    private static final ThreadLocal<ItemStack> WEAPON =
+            new ThreadLocal<>();
 
     private VelocityMaceAttackContext() {
     }
@@ -48,10 +58,23 @@ public final class VelocityMaceAttackContext {
         return TARGET_VELOCITY.get();
     }
 
+    public static void setWeapon(ItemStack weapon) {
+        if (weapon != null && !weapon.isEmpty()) {
+            WEAPON.set(weapon.copy());
+        } else {
+            WEAPON.remove();
+        }
+    }
+
+    public static ItemStack getWeapon() {
+        return WEAPON.get();
+    }
+
     public static void clearTarget() {
         ATTACKER.remove();
         ATTACK_TARGET.remove();
         ATTACKER_VELOCITY.remove();
         TARGET_VELOCITY.remove();
+        WEAPON.remove();
     }
 }
