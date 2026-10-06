@@ -1,4 +1,4 @@
-package com.gea69.velocitymace.mixin;
+        package com.gea69.velocitymace.mixin;
 
 import com.gea69.velocitymace.VelocityMaceAttackContext;
 import net.minecraft.world.entity.Entity;
@@ -19,14 +19,17 @@ public abstract class PlayerMixin {
     ) {
         Player player = (Player) (Object) this;
 
-        // The server is authoritative for the velocity calculation.
         if (player.level().isClientSide()) {
             return;
         }
 
-        Vec3 attackerVelocity = player.getDeltaMovement();
+        Vec3 attackerVelocity =
+                player.getDeltaMovement();
+
         Vec3 targetVelocity =
-                target != null ? target.getDeltaMovement() : null;
+                target != null
+                        ? target.getDeltaMovement()
+                        : null;
 
         VelocityMaceAttackContext.setAttack(
                 player,
