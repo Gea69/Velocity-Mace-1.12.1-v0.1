@@ -1,22 +1,18 @@
 package com.gea69.velocitymace.mixin;
 
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
-import net.minecraft.world.item.enchantment.EnchantmentTarget;
-import net.minecraft.world.item.enchantment.effects.ExplodeEffect;
-import net.minecraft.world.item.enchantment.TargetedConditionalEffect;
-import net.minecraft.world.item.enchantment.effects.EnchantmentEntityEffect;
+import com.gea69.velocitymace.VelocityMaceAttackContext;
+import com.gea69.velocitymace.WindBurstHandler;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.enchantment.EnchantedItemInUse;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.enchantment.EnchantedItemInUse;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentTarget;
+import net.minecraft.world.item.enchantment.Enchantments;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import com.gea69.velocitymace.WindBurstHandler;
-
-import java.util.List;
 
 @Mixin(Enchantment.class)
 public abstract class EnchantmentMixin {
@@ -43,44 +39,22 @@ public abstract class EnchantmentMixin {
             return;
         }
 
-        WindBurstHandler.apply(level, enchantmentLevel);
+        WindBurstHandler.apply(
+                level,
+                enchantmentLevel
+        );
 
         ci.cancel();
     }
 
     private boolean velocityMace$isWindBurst() {
-        Enchantment enchantment =
-                (Enchantment) (Object) this;
+        var enchantment =
+                VelocityMaceAttackContext.getCurrentEnchantment();
 
-        List<TargetedConditionalEffect<EnchantmentEntityEffect>> effects =
-                enchantment.getEffects(
-                        EnchantmentEffectComponents.POST_ATTACK
-                );
-
-        if (effects == null) {
+        if (enchantment == null) {
             return false;
         }
 
-        for (TargetedConditionalEffect<EnchantmentEntityEffect> effect
-                : effects) {
-
-            if (effect.enchanted()
-                    != EnchantmentTarget.ATTACKER) {
-                continue;
-            }
-
-            if (effect.affected()
-                    != EnchantmentTarget.ATTACKER) {
-                continue;
-            }
-
-            if (!(effect.effect() instanceof ExplodeEffect)) {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
+        return enchantment.is(Enchantments.WIND_BURST);
     }
 }

@@ -4,6 +4,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.Holder;
+import net.minecraft.world.item.enchantment.Enchantment;
 
 public final class VelocityMaceAttackContext {
 
@@ -38,6 +40,9 @@ public final class VelocityMaceAttackContext {
             new ThreadLocal<>();
 
     private static final ThreadLocal<Boolean> RIDING =
+            new ThreadLocal<>();
+
+    private static final ThreadLocal<Holder<Enchantment>> CURRENT_ENCHANTMENT =
             new ThreadLocal<>();
 
     private VelocityMaceAttackContext() {
@@ -147,6 +152,20 @@ public final class VelocityMaceAttackContext {
         return value != null && value;
     }
 
+    public static void setCurrentEnchantment(
+            Holder<Enchantment> enchantment
+    ) {
+        CURRENT_ENCHANTMENT.set(enchantment);
+    }
+
+    public static Holder<Enchantment> getCurrentEnchantment() {
+        return CURRENT_ENCHANTMENT.get();
+    }
+
+    public static void clearCurrentEnchantment() {
+        CURRENT_ENCHANTMENT.remove();
+    }
+
     public static void clearTarget() {
         ATTACKER.remove();
         ATTACK_TARGET.remove();
@@ -160,5 +179,6 @@ public final class VelocityMaceAttackContext {
         SWIMMING.remove();
         CRAWLING.remove();
         RIDING.remove();
+        CURRENT_ENCHANTMENT.remove();
     }
 }
