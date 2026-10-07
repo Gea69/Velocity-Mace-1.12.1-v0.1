@@ -1,11 +1,11 @@
 package com.gea69.velocitymace;
 
+import net.minecraft.core.Holder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.core.Holder;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.phys.Vec3;
 
 public final class VelocityMaceAttackContext {
 
@@ -42,7 +42,8 @@ public final class VelocityMaceAttackContext {
     private static final ThreadLocal<Boolean> RIDING =
             new ThreadLocal<>();
 
-    private static final ThreadLocal<Holder<Enchantment>> CURRENT_ENCHANTMENT =
+    private static final ThreadLocal<Holder<Enchantment>>
+            CURRENT_ENCHANTMENT =
             new ThreadLocal<>();
 
     private VelocityMaceAttackContext() {
@@ -56,16 +57,15 @@ public final class VelocityMaceAttackContext {
     ) {
         ATTACKER.set(attacker);
         ATTACK_TARGET.set(target);
+
         ATTACKER_VELOCITY.set(attackerVelocity);
         TARGET_VELOCITY.set(targetVelocity);
 
-        /*
-         * Snapshot the movement state at the exact beginning
-         * of Player.attack().
-         */
-        FALL_FLYING.set(
-                attacker.isFallFlying()
-        );
+        FALL_FLYING.set(attacker.isFallFlying());
+        SPRINTING.set(attacker.isSprinting());
+        SWIMMING.set(attacker.isSwimming());
+        CRAWLING.set(attacker.isCrouching());
+        RIDING.set(attacker.isPassenger());
 
         boolean flying = false;
 
@@ -76,22 +76,6 @@ public final class VelocityMaceAttackContext {
         }
 
         FLYING.set(flying);
-
-        SPRINTING.set(
-                attacker.isSprinting()
-        );
-
-        SWIMMING.set(
-                attacker.isSwimming()
-        );
-
-        CRAWLING.set(
-                attacker.isVisuallyCrawling()
-        );
-
-        RIDING.set(
-                attacker.isPassenger()
-        );
     }
 
     public static Player getAttacker() {
@@ -112,14 +96,6 @@ public final class VelocityMaceAttackContext {
 
     public static ItemStack getWeapon() {
         return WEAPON.get();
-    }
-
-    public static void setWeapon(ItemStack weapon) {
-        if (weapon == null || weapon.isEmpty()) {
-            WEAPON.set(ItemStack.EMPTY);
-        } else {
-            WEAPON.set(weapon.copy());
-        }
     }
 
     public static boolean isFallFlying() {
@@ -152,6 +128,14 @@ public final class VelocityMaceAttackContext {
         return value != null && value;
     }
 
+    public static void setWeapon(ItemStack weapon) {
+        if (weapon == null || weapon.isEmpty()) {
+            WEAPON.set(ItemStack.EMPTY);
+        } else {
+            WEAPON.set(weapon.copy());
+        }
+    }
+
     public static void setCurrentEnchantment(
             Holder<Enchantment> enchantment
     ) {
@@ -169,8 +153,10 @@ public final class VelocityMaceAttackContext {
     public static void clearTarget() {
         ATTACKER.remove();
         ATTACK_TARGET.remove();
+
         ATTACKER_VELOCITY.remove();
         TARGET_VELOCITY.remove();
+
         WEAPON.remove();
 
         FALL_FLYING.remove();
@@ -179,6 +165,7 @@ public final class VelocityMaceAttackContext {
         SWIMMING.remove();
         CRAWLING.remove();
         RIDING.remove();
+
         CURRENT_ENCHANTMENT.remove();
     }
 }
