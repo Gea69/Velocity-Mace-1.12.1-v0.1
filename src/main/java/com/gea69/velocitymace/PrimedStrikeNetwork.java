@@ -1,13 +1,14 @@
 package com.gea69.velocitymace;
 
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 public final class PrimedStrikeNetwork {
 
@@ -47,30 +48,33 @@ public final class PrimedStrikeNetwork {
             return;
         }
 
-        if (player.getCooldowns()
-                .isOnCooldown(weapon.getItem())) {
+        if (player.getCooldowns().isOnCooldown(
+                weapon.getItem()
+        )) {
             return;
         }
 
         Entity target =
-                player.level()
-                        .getEntity(
-                                payload.entityId()
-                        );
+                player.level().getEntity(
+                        payload.entityId()
+                );
 
         if (target == null) {
             return;
         }
 
-        /*
-         * Re-run the raycast on the server.
-         *
-         * We do not trust the target supplied by the client.
-         */
         double range =
-                player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE)
+                player.getAttributeValue(
+                        Attributes.ENTITY_INTERACTION_RANGE
+                )
                         + PrimedStrike.getAdditionalRange(level);
 
+        /*
+         * Never trust the target ID supplied by the client.
+         *
+         * Recalculate what the server says the player is
+         * currently looking at.
+         */
         Entity raycastTarget =
                 PrimedStrikeTargeting.findTarget(
                         player,
@@ -90,27 +94,18 @@ public final class PrimedStrikeNetwork {
         }
 
         /*
-         * Use the normal Player.attack() pipeline.
-         *
-         * This is important because it allows your existing:
-         *
-         * PlayerMixin
-         * MaceItemMixin
-         * Breach
-         * Wind Burst
-         * velocity smash
-         *
-         * logic to operate exactly as it does for a normal attack.
+         * Play the server-side swing so other players see
+         * the attack animation as well.
          */
+        player.swing(
+                InteractionHand.MAIN_HAND
+        );
+
         player.attack(target);
 
-        /*
-         * Five seconds = 100 ticks.
-         */
-        player.getCooldowns()
-                .addCooldown(
-                        weapon.getItem(),
-                        COOLDOWN_TICKS
-                );
+        player.getCooldowns().addCooldown(
+                weapon.getItem(),
+                COOLDOWN_TICKS
+        );
     }
 }

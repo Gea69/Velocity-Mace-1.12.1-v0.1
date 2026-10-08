@@ -2,14 +2,15 @@ package com.gea69.velocitymace;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+
+import java.util.function.Predicate;
 
 public final class PrimedStrikeTargeting {
 
@@ -20,7 +21,13 @@ public final class PrimedStrikeTargeting {
             Player player,
             double range
     ) {
-        Level level = player.level();
+        if (player == null || player.level() == null) {
+            return null;
+        }
+
+        if (range <= 0.0D) {
+            return null;
+        }
 
         Vec3 start =
                 player.getEyePosition();
@@ -34,11 +41,13 @@ public final class PrimedStrikeTargeting {
                 );
 
         /*
-         * First determine how far the player can see before
-         * hitting a solid block.
+         * First raycast against blocks.
+         *
+         * This prevents Primed Strike from attacking an entity
+         * through a solid block.
          */
         BlockHitResult blockHit =
-                level.clip(
+                player.level().clip(
                         new ClipContext(
                                 start,
                                 desiredEnd,
@@ -51,57 +60,93 @@ public final class PrimedStrikeTargeting {
         Vec3 end =
                 desiredEnd;
 
-        if (blockHit.getType()
-                != HitResult.Type.MISS) {
-
+        if (blockHit.getType() != HitResult.Type.MISS) {
             end =
                     blockHit.getLocation();
         }
 
-        double entityRange =
-                start.distanceTo(end);
-
-        if (entityRange <= 0.0D) {
-            return null;
-        }
-
+        /*
+         * This matches vanilla's entity raycast structure.
+         *
+         * The final argument to ProjectileUtil.getEntityHitResult
+         * is squared distance, not linear distance.
+         */
         AABB searchBox =
                 player.getBoundingBox()
                         .expandTowards(
-                                look.scale(entityRange)
+                                look.scale(range)
                         )
                         .inflate(1.0D);
 
-        EntityHitResult entityHit =
+        Predicate<Entity> predicate =
+                entity ->
+                        entity != player
+                                && !entity.isRemoved()
+                                && entity.isPickable()
+                                && entity.isAttackable()
+                                && !entity.skipAttackInteraction(player);
+
+        EntityHitResult hit =
                 ProjectileUtil.getEntityHitResult(
                         player,
                         start,
                         end,
                         searchBox,
-                        entity -> {
-                            if (entity == player) {
-                                return false;
-                            }
-
-                            if (!entity.isPickable()) {
-                                return false;
-                            }
-
-                            if (!entity.isAttackable()) {
-                                return false;
-                            }
-
-                            return !entity.skipAttackInteraction(
-                                    player
-                            );
-                        },
-                        entityRange
+                        predicate,
+                        range * range
                 );
 
-        if (entityHit == null) {
+        if (hit == null) {
             return null;
         }
 
-        return entityHit.getEntity();
+        Entity target =
+                hit.getEntity();
+
+        if (!canTarget(player, target)) {
+            return null;
+        }
+
+        /*
+         * Perform a final range check against the target's
+         * actual bounding box. This prevents an entity whose
+         * bounding box barely entered the search AABB from
+         * being selected outside the intended interaction range.
+         */
+        if (!player.canInteractWithEntity(
+                target.getBoundingBox(),
+                range
+        )) {
+            return null;
+        }
+
+        return target;
+    }
+
+    private static boolean canTarget(
+            Player player,
+            Entity target
+    ) {
+        if (target == null) {
+            return false;
+        }
+
+        if (target == player) {
+            return false;
+        }
+
+        if (target.isRemoved()) {
+            return false;
+        }
+
+        if (!target.isPickable()) {
+            return false;
+        }
+
+        if (!target.isAttackable()) {
+            return false;
+        }
+
+        return !target.skipAttackInteraction(player);
     }
 }
