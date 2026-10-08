@@ -9,7 +9,9 @@
     "EnchantmentMixin",
     "EnchantmentCompatibilityMixin",
     "EnchantmentHelperMixin",
-    "LivingEntityMixin"
+    "LivingEntityMixin",
+    "ShockwaveMaceMixin",
+    "ShockwaveHitMixin"
   ],
   "client": [
     "MinecraftMixin",

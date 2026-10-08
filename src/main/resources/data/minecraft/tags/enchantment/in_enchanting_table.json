@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "velocitymace:primed_strike"
+    "velocitymace:primed_strike",
+    "velocitymace:shockwave"
   ]
 }

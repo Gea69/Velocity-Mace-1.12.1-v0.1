@@ -1,0 +1,28 @@
+{
+  "description": {
+    "translate": "enchantment.velocitymace.shockwave"
+  },
+  "supported_items": [
+    "minecraft:mace"
+  ],
+  "primary_items": [
+    "minecraft:mace"
+  ],
+  "exclusive_set": [
+    "minecraft:density"
+  ],
+  "weight": 2,
+  "max_level": 4,
+  "min_cost": {
+    "base": 5,
+    "per_level_above_first": 8
+  },
+  "max_cost": {
+    "base": 25,
+    "per_level_above_first": 8
+  },
+  "anvil_cost": 2,
+  "slots": [
+    "mainhand"
+  ]
+}
