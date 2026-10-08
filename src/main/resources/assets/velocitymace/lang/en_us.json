@@ -1,4 +1,6 @@
 {
+  "enchantment.velocitymace.primed_strike": "Primed Strike",
+
   "itemGroup.examplemod": "Example Mod Tab",
   "block.examplemod.example_block": "Example Block",
   "item.examplemod.example_item": "Example Item",
