@@ -1,4 +1,4 @@
-        package com.gea69.velocitymace.mixin;
+package com.gea69.velocitymace.mixin;
 
 import com.gea69.velocitymace.VelocityMaceAttackContext;
 import net.minecraft.world.damagesource.DamageSource;
@@ -15,7 +15,11 @@ import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
+
 
 @Mixin(MaceItem.class)
 public abstract class MaceItemMixin {
@@ -64,9 +68,6 @@ public abstract class MaceItemMixin {
         }
     }
 
-    /**
-     * Capture the actual weapon responsible for this damage calculation.
-     */
     @Inject(
             method = "getAttackDamageBonus",
             at = @At("HEAD")
@@ -86,16 +87,42 @@ public abstract class MaceItemMixin {
                     damageSource.getWeaponItem()
             );
         } catch (Exception ignored) {
-            VelocityMaceAttackContext.setWeapon(ItemStack.EMPTY);
+            VelocityMaceAttackContext.setWeapon(
+                    ItemStack.EMPTY
+            );
         }
     }
 
-    /**
-     * Replace vanilla f1 with relative velocity converted from
-     * blocks/tick to blocks/second.
-     *
-     * This remains the effective fall distance used by Density.
-     */
+    @Redirect(
+            method = "hurtEnemy",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/server/level/ServerPlayer;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"
+            )
+    )
+    private void velocityMace$preserveUpwardVelocity(
+            ServerPlayer attacker,
+            Vec3 movement
+    ) {
+        Vec3 originalVelocity =
+                VelocityMaceAttackContext.getAttackerVelocity();
+
+        if (originalVelocity == null) {
+            attacker.setDeltaMovement(movement);
+            return;
+        }
+
+        double restoredY =
+                Math.max(originalVelocity.y, 0.01D);
+
+        attacker.setDeltaMovement(
+                movement.with(
+                        Direction.Axis.Y,
+                        restoredY
+                )
+        );
+    }
+
     @ModifyVariable(
             method = "getAttackDamageBonus",
             at = @At("STORE"),
@@ -107,12 +134,6 @@ public abstract class MaceItemMixin {
         return (float) velocityMace$getVelocityPerSecond();
     }
 
-    /**
-     * Replace vanilla f2 with the custom velocity-based bonus.
-     *
-     * x = relative velocity in blocks/second
-     * z = weapon ATTACK_DAMAGE value + 1
-     */
     @ModifyVariable(
             method = "getAttackDamageBonus",
             at = @At("STORE"),
@@ -130,9 +151,6 @@ public abstract class MaceItemMixin {
         return (float) velocityMace$calculateY(x, z);
     }
 
-    /**
-     * Piecewise velocity-to-damage formula.
-     */
     private static double velocityMace$calculateY(
             double x,
             double z
@@ -151,18 +169,19 @@ public abstract class MaceItemMixin {
         );
     }
 
-    /**
-     * Gets attack-start relative velocity in blocks/second.
-     */
     private static double velocityMace$getVelocityPerSecond() {
         Vec3 attackerVelocity =
-                VelocityMaceAttackContext.getAttackerVelocity();
+                VelocityMaceAttackContext
+                        .getAttackerVelocity();
 
         Vec3 targetVelocity =
-                VelocityMaceAttackContext.getTargetVelocity();
+                VelocityMaceAttackContext
+                        .getTargetVelocity();
 
         try {
-            if (attackerVelocity != null && targetVelocity != null) {
+            if (attackerVelocity != null
+                    && targetVelocity != null) {
+
                 return attackerVelocity
                         .subtract(targetVelocity)
                         .length()
@@ -186,10 +205,6 @@ public abstract class MaceItemMixin {
         }
     }
 
-    /**
-     * Gets the weapon's resolved ATTACK_DAMAGE modifier and adds
-     * the entity's normal base attack damage of 1.
-     */
     private static double velocityMace$getWeaponDamage() {
         ItemStack weapon =
                 VelocityMaceAttackContext.getWeapon();
@@ -206,7 +221,9 @@ public abstract class MaceItemMixin {
         for (ItemAttributeModifiers.Entry entry :
                 modifiers.modifiers()) {
 
-            if (!entry.attribute().equals(Attributes.ATTACK_DAMAGE)) {
+            if (!entry.attribute().equals(
+                    Attributes.ATTACK_DAMAGE
+            )) {
                 continue;
             }
 

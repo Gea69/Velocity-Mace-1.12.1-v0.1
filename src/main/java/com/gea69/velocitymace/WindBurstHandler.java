@@ -49,6 +49,10 @@ public final class WindBurstHandler {
             relativeVelocity = attackerVelocity.length();
         }
 
+        if (relativeVelocity < VELOCITY_THRESHOLD) {
+            return;
+        }
+
         boolean fallFlying =
                 VelocityMaceAttackContext.isFallFlying();
 
@@ -70,17 +74,19 @@ public final class WindBurstHandler {
         double force =
                 getForce(enchantmentLevel);
 
-        if (relativeVelocity < VELOCITY_THRESHOLD) {
-            return;
-        }
-
         /*
-         * FALL-FLYING
+         * FALL-FLYING / ELYTRA
+         *
+         * Requires Wind Burst III or higher.
          *
          * 50% straight upward
          * 50% in the direction the attacker is moving.
          */
         if (fallFlying) {
+
+            if (enchantmentLevel < 3) {
+                return;
+            }
 
             Vec3 movement = attackerVelocity;
 
@@ -91,6 +97,7 @@ public final class WindBurstHandler {
                 movement =
                         movement.normalize();
             }
+
             Vec3 impulse =
                     new Vec3(
                             0.0D,
@@ -140,6 +147,8 @@ public final class WindBurstHandler {
         /*
          * NORMAL WIND BURST
          *
+         * Requires Wind Burst II or higher.
+         *
          * Only execute when every known special state is false.
          */
         if (!fallFlying
@@ -148,6 +157,10 @@ public final class WindBurstHandler {
                 && !swimming
                 && !crawling
                 && !riding) {
+
+            if (enchantmentLevel < 2) {
+                return;
+            }
 
             attacker.setDeltaMovement(
                     attacker.getDeltaMovement().add(
