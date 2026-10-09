@@ -2,12 +2,12 @@
   "description": {
     "translate": "enchantment.velocitymace.primed_strike"
   },
-  "supported_items": [
-    "minecraft:mace"
-  ],
-  "primary_items": [
-    "minecraft:mace"
-  ],
+  "supported_items":
+    "#velocitymace:maces"
+  ,
+  "primary_items":
+    "#velocitymace:maces"
+  ,
   "exclusive_set": [
     "minecraft:wind_burst",
     "minecraft:breach"
