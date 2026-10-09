@@ -2,19 +2,18 @@
 package com.gea69.velocitymace;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -23,11 +22,13 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerLevel;
 
 public final class MeteorImpactHandler {
+
     private static final ResourceKey<DamageType> RECOIL_DAMAGE_TYPE =
             ResourceKey.create(
                     Registries.DAMAGE_TYPE,
                     ResourceLocation.fromNamespaceAndPath(
-                            "velocitymace", "meteor_impact_recoil"
+                            "velocitymace",
+                            "meteor_impact_recoil"
                     )
             );
 
@@ -38,8 +39,7 @@ public final class MeteorImpactHandler {
         if (!(hit.attacker() instanceof LivingEntity attacker)
                 || !(hit.target() instanceof LivingEntity target)
                 || !(target.level() instanceof ServerLevel level)
-                || !attacker.isAlive()
-                ) {
+                || !attacker.isAlive()) {
             return;
         }
 
@@ -52,26 +52,74 @@ public final class MeteorImpactHandler {
                 target.getZ()
         );
 
+        /*
+         * Explosion power remains independent of entity damage.
+         * It controls the vanilla explosion's size and block effects.
+         */
         float power = MeteorImpact.getExplosionPower(speed);
+
+        /*
+         * Entity damage is based on the primary smash hit's damage
+         * before defenses, multiplied by the speed-based percentage.
+         */
+        float entityDamage = MeteorImpact.getExplosionEntityDamage(
+                hit.preDefenseDamage(),
+                speed
+        );
+
         double fireRadius = MeteorImpact.getFireRadius(speed);
+
         boolean mobGriefing = level.getGameRules()
                 .getBoolean(GameRules.RULE_MOBGRIEFING);
 
         /*
-         * TNT interaction uses the TNT explosion drop-decay gamerule.
-         * NONE still permits the explosion's entity damage and effects,
-         * but prevents block destruction when mobGriefing is disabled.
+         * TNT interaction preserves vanilla explosion block behavior
+         * and the tntExplosionDropDecay gamerule. NONE prevents block
+         * destruction when mobGriefing is disabled.
          */
         Level.ExplosionInteraction interaction = mobGriefing
                 ? Level.ExplosionInteraction.TNT
                 : Level.ExplosionInteraction.NONE;
 
-        DamageSource explosionDamage = Explosion.getDefaultDamageSource(level, attacker);
+        DamageSource explosionDamage =
+                Explosion.getDefaultDamageSource(level, attacker);
 
-        Explosion explosion = level.explode(
+        /*
+         * Override entity damage independently of explosion power.
+         * The explosion still determines which entities are within
+         * its normal affected radius and handles the explosion effects.
+         *
+         * The attacker is excluded from both explosion damage and
+         * explosion knockback. Recoil is applied separately below.
+         */
+        ExplosionDamageCalculator damageCalculator =
+                new ExplosionDamageCalculator() {
+                    @Override
+                    public boolean shouldDamageEntity(
+                            Explosion explosion,
+                            Entity entity
+                    ) {
+                        return entity != attacker;
+                    }
+
+                    @Override
+                    public float getEntityDamageAmount(
+                            Explosion explosion,
+                            Entity entity
+                    ) {
+                        return entityDamage;
+                    }
+
+                    @Override
+                    public float getKnockbackMultiplier(Entity entity) {
+                        return entity == attacker ? 0.0F : 1.0F;
+                    }
+                };
+
+        level.explode(
                 attacker,
                 explosionDamage,
-                null,
+                damageCalculator,
                 center.x,
                 center.y,
                 center.z,
@@ -83,94 +131,37 @@ public final class MeteorImpactHandler {
                 SoundEvents.GENERIC_EXPLODE
         );
 
-        /*
-         * Vanilla explosion damage is already applied by the explosion.
-         * Add only the extra component above 100 blocks/second, keeping
-         * the explosion's actual power and block destruction capped at 6.
-         */
-        if (speed > 100.0D && power > 0.0F) {
-            applyOverCapExplosionDamage(
-                    level, attacker, center, power, speed / 100.0D - 1.0D,
-                    explosionDamage
-            );
-        }
-
         if (mobGriefing && fireRadius > 0.0D) {
             placeImpactFire(level, attacker, center, fireRadius);
         }
 
         /*
-         * Ignite living entities in the explosion's damage range.
-         * The attacker is excluded; the explosion source also excludes
-         * the attacker from the normal explosion damage pass.
+         * Ignite living entities in the explosion's normal blast range.
+         * The attacker is excluded.
          */
         double blastRadius = power * 2.0D;
+
         AABB entityArea = new AABB(
-                center.x - blastRadius, center.y - blastRadius, center.z - blastRadius,
-                center.x + blastRadius, center.y + blastRadius, center.z + blastRadius
+                center.x - blastRadius,
+                center.y - blastRadius,
+                center.z - blastRadius,
+                center.x + blastRadius,
+                center.y + blastRadius,
+                center.z + blastRadius
         );
 
         for (LivingEntity entity : level.getEntitiesOfClass(
-                LivingEntity.class, entityArea,
+                LivingEntity.class,
+                entityArea,
                 entity -> entity != attacker && entity.isAlive()
         )) {
-            if (entity.distanceToSqr(center) <= blastRadius * blastRadius) {
+            if (entity.distanceToSqr(center)
+                    <= blastRadius * blastRadius) {
                 entity.igniteForSeconds(8.0F);
             }
         }
 
         applyRecoil(attacker, enchantmentLevel, speed);
-    }
-
-    private static void applyOverCapExplosionDamage(
-            ServerLevel level,
-            LivingEntity attacker,
-            Vec3 center,
-            float power,
-            double extraMultiplier,
-            DamageSource damageSource
-    ) {
-        double damageRadius = power * 2.0D;
-        if (damageRadius <= 0.0D || extraMultiplier <= 0.0D) {
-            return;
-        }
-
-        AABB area = new AABB(
-                center.x - damageRadius, center.y - damageRadius, center.z - damageRadius,
-                center.x + damageRadius, center.y + damageRadius, center.z + damageRadius
-        );
-
-        for (LivingEntity entity : level.getEntitiesOfClass(
-                LivingEntity.class, area,
-                candidate -> candidate != attacker && candidate.isAlive()
-        )) {
-            double distance = Math.sqrt(entity.distanceToSqr(center));
-            double normalizedDistance = distance / damageRadius;
-
-            if (normalizedDistance >= 1.0D) {
-                continue;
-            }
-
-            double exposure = Explosion.getSeenPercent(center, entity);
-            double impact = (1.0D - normalizedDistance) * exposure;
-            if (impact <= 0.0D) {
-                continue;
-            }
-
-            /*
-             * Vanilla's explosion damage formula for the capped power.
-             * Scale only the additional damage beyond the capped explosion.
-             */
-            double cappedExplosionDamage =
-                    (impact * impact + impact) * 7.0D * power + 1.0D;
-
-            float extraDamage = (float) (Math.floor(cappedExplosionDamage)
-                    * extraMultiplier);
-
-            if (extraDamage > 0.0F) {
-                entity.hurt(damageSource, extraDamage);
-            }
-        }
     }
 
     private static void placeImpactFire(
@@ -184,10 +175,17 @@ public final class MeteorImpactHandler {
 
         int minX = (int) Math.floor(center.x - radius);
         int maxX = (int) Math.ceil(center.x + radius);
-        int minY = Math.max(level.getMinBuildHeight(),
-                (int) Math.floor(center.y - radius));
-        int maxY = Math.min(level.getMaxBuildHeight() - 1,
-                (int) Math.ceil(center.y + radius));
+
+        int minY = Math.max(
+                level.getMinBuildHeight(),
+                (int) Math.floor(center.y - radius)
+        );
+
+        int maxY = Math.min(
+                level.getMaxBuildHeight() - 1,
+                (int) Math.ceil(center.y + radius)
+        );
+
         int minZ = (int) Math.floor(center.z - radius);
         int maxZ = (int) Math.ceil(center.z + radius);
 
@@ -200,7 +198,8 @@ public final class MeteorImpactHandler {
                     double dy = (y + 0.5D) - center.y;
                     double dz = (z + 0.5D) - center.z;
 
-                    if (dx * dx + dy * dy + dz * dz > radiusSquared) {
+                    if (dx * dx + dy * dy + dz * dz
+                            > radiusSquared) {
                         continue;
                     }
 
@@ -217,11 +216,16 @@ public final class MeteorImpactHandler {
                         continue;
                     }
 
-                    if (!Blocks.FIRE.defaultBlockState().canSurvive(level, pos)) {
+                    if (!Blocks.FIRE.defaultBlockState()
+                            .canSurvive(level, pos)) {
                         continue;
                     }
 
-                    level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3);
+                    level.setBlock(
+                            pos,
+                            Blocks.FIRE.defaultBlockState(),
+                            3
+                    );
                 }
             }
         }
@@ -233,20 +237,36 @@ public final class MeteorImpactHandler {
             double speed
     ) {
         double maxHealth = attacker.getMaxHealth();
-        int rawDamage = MeteorImpact.getRawRecoilDamage(maxHealth, speed);
+
+        int rawDamage = MeteorImpact.getRawRecoilDamage(
+                maxHealth,
+                speed
+        );
 
         if (rawDamage <= 0) {
             return;
         }
 
-        double armorPoints = Math.max(0.0D, attacker.getArmorValue());
-        double armorCap = Math.max(0, enchantmentLevel - 1) * 5.0D;
+        double armorPoints = Math.max(
+                0.0D,
+                attacker.getArmorValue()
+        );
+
+        double armorCap = Math.max(
+                0,
+                enchantmentLevel - 1
+        ) * 5.0D;
 
         // Each armor point contributes 1.25%, up to the level-specific cap.
-        double armorReduction = Math.min(armorPoints, armorCap) * 0.0125D;
+        double armorReduction =
+                Math.min(armorPoints, armorCap) * 0.0125D;
 
         int protectionPoints = getProtectionPoints(attacker);
-        double protectionCap = Math.max(0, enchantmentLevel - 1) * 10.0D;
+
+        double protectionCap = Math.max(
+                0,
+                enchantmentLevel - 1
+        ) * 10.0D;
 
         // Each protection point contributes 1.875%, up to the level cap.
         double protectionReduction =
@@ -257,12 +277,16 @@ public final class MeteorImpactHandler {
                 armorReduction + protectionReduction
         );
 
-        double remainingDamage = rawDamage * (1.0D - totalReduction);
+        double remainingDamage =
+                rawDamage * (1.0D - totalReduction);
 
-        // Keep at least 1 damage unless the recoil is fully mitigated.
+        // Full mitigation may reduce recoil to zero.
         int finalDamage = totalReduction >= 1.0D
                 ? 0
-                : Math.max(1, (int) Math.floor(remainingDamage));
+                : Math.max(
+                1,
+                (int) Math.floor(remainingDamage)
+        );
 
         if (finalDamage > 0) {
             DamageSource recoilSource =
@@ -277,7 +301,8 @@ public final class MeteorImpactHandler {
 
         for (ItemStack armorPiece : attacker.getArmorSlots()) {
             for (var entry : armorPiece.getEnchantments().entrySet()) {
-                String id = entry.getKey().unwrapKey()
+                String id = entry.getKey()
+                        .unwrapKey()
                         .map(key -> key.location().toString())
                         .orElse("");
 

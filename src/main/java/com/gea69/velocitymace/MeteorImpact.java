@@ -1,3 +1,4 @@
+
 package com.gea69.velocitymace;
 
 import net.minecraft.core.registries.Registries;
@@ -39,16 +40,57 @@ public final class MeteorImpact {
                 .orElse(0);
     }
 
+    /**
+     * Controls explosion power, including block destruction.
+     * This remains independent of entity damage.
+     */
     public static float getExplosionPower(double speedBlocksPerSecond) {
         return (float) (
-                6.0D * Math.min(speedBlocksPerSecond, 100.0D) / 100.0D
+                6.0D * Math.min(
+                        Math.max(speedBlocksPerSecond, 0.0D),
+                        100.0D
+                ) / 100.0D
         );
+    }
+
+    /**
+     * Entity damage multiplier:
+     * 0 b/s = 0%, 50 b/s = 150%, 100+ b/s = 300%.
+     */
+    public static float getExplosionDamageMultiplier(
+            double speedBlocksPerSecond
+    ) {
+        double cappedSpeed = Math.min(
+                Math.max(speedBlocksPerSecond, 0.0D),
+                100.0D
+        );
+
+        return (float) (cappedSpeed * 0.03D);
+    }
+
+    /**
+     * Entity damage is based on the primary smash hit before defenses.
+     * The resulting damage is then processed through normal defenses.
+     */
+    public static float getExplosionEntityDamage(
+            float preDefenseDamage,
+            double speedBlocksPerSecond
+    ) {
+        if (!Float.isFinite(preDefenseDamage)
+                || preDefenseDamage <= 0.0F) {
+            return 0.0F;
+        }
+
+        return preDefenseDamage
+                * getExplosionDamageMultiplier(speedBlocksPerSecond);
     }
 
     public static double getFireRadius(double speedBlocksPerSecond) {
         return 10.4D
-                * Math.min(speedBlocksPerSecond, 100.0D)
-                / 100.0D;
+                * Math.min(
+                Math.max(speedBlocksPerSecond, 0.0D),
+                100.0D
+        ) / 100.0D;
     }
 
     public static int getRawRecoilDamage(
@@ -61,8 +103,10 @@ public final class MeteorImpact {
 
         int damage = (int) Math.floor(
                 maxHealth
-                        * Math.min(speedBlocksPerSecond, 100.0D)
-                        / 100.0D
+                        * Math.min(
+                        Math.max(speedBlocksPerSecond, 0.0D),
+                        100.0D
+                ) / 100.0D
         );
 
         return Math.max(

@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MaceItem.class)
 public abstract class MeteorImpactMaceMixin {
+
     @Inject(
             method = "getAttackDamageBonus",
             at = @At("RETURN")
@@ -31,13 +32,26 @@ public abstract class MeteorImpactMaceMixin {
         }
 
         Entity source = damageSource.getEntity();
+
         if (!(source instanceof LivingEntity attacker)) {
             return;
         }
 
         ItemStack weapon = damageSource.getWeaponItem();
         int level = MeteorImpact.getLevel(weapon);
+
         if (level <= 0 || !MaceItem.canSmashAttack(attacker)) {
+            return;
+        }
+
+        /*
+         * Match Shockwave's pre-defense damage calculation:
+         * incoming attack damage + the mace's smash bonus.
+         */
+        float preDefenseDamage = damage + cir.getReturnValue();
+
+        if (preDefenseDamage <= 0.0F
+                || !Float.isFinite(preDefenseDamage)) {
             return;
         }
 
@@ -45,10 +59,17 @@ public abstract class MeteorImpactMaceMixin {
                 .subtract(target.getDeltaMovement());
 
         double speed = relativeVelocity.length() * 20.0D;
+
         if (!Double.isFinite(speed) || speed <= 0.0D) {
             return;
         }
 
-        MeteorImpactAttackContext.set(attacker, target, speed, level);
+        MeteorImpactAttackContext.set(
+                attacker,
+                target,
+                speed,
+                preDefenseDamage,
+                level
+        );
     }
 }
