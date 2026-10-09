@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "velocitymace:primed_strike",
-    "velocitymace:shockwave"
+    "velocitymace:shockwave",
+    "velocitymace:meteor_impact"
   ]
 }

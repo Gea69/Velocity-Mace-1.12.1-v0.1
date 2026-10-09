@@ -11,7 +11,9 @@
     "EnchantmentHelperMixin",
     "LivingEntityMixin",
     "ShockwaveMaceMixin",
-    "ShockwaveHitMixin"
+    "ShockwaveHitMixin",
+    "MeteorImpactMaceMixin",
+    "MeteorImpactHitMixin"
   ],
   "client": [
     "MinecraftMixin",

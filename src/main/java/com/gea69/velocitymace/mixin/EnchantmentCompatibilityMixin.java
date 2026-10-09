@@ -1,5 +1,8 @@
+
 package com.gea69.velocitymace.mixin;
 
+import com.gea69.velocitymace.MeteorImpact;
+import com.gea69.velocitymace.Shockwave;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -22,10 +25,7 @@ public abstract class EnchantmentCompatibilityMixin {
             Holder<Enchantment> second,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        /*
-         * Density + Breach:
-         * explicitly allow.
-         */
+        // Density + Breach: explicitly allow.
         if (isPair(
                 first,
                 second,
@@ -36,15 +36,34 @@ public abstract class EnchantmentCompatibilityMixin {
             return;
         }
 
-        /*
-         * Breach + Wind Burst:
-         * explicitly forbid.
-         */
+        // Breach + Wind Burst: explicitly forbid.
         if (isPair(
                 first,
                 second,
                 Enchantments.BREACH,
                 Enchantments.WIND_BURST
+        )) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        // Meteor Impact + Density: explicitly forbid.
+        if (isPair(
+                first,
+                second,
+                MeteorImpact.ENCHANTMENT,
+                Enchantments.DENSITY
+        )) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        // Meteor Impact + Shockwave: explicitly forbid.
+        if (isPair(
+                first,
+                second,
+                MeteorImpact.ENCHANTMENT,
+                Shockwave.ENCHANTMENT
         )) {
             cir.setReturnValue(false);
         }
@@ -59,8 +78,7 @@ public abstract class EnchantmentCompatibilityMixin {
         return (
                 first.is(firstKey)
                         && second.is(secondKey)
-        )
-                || (
+        ) || (
                 first.is(secondKey)
                         && second.is(firstKey)
         );
