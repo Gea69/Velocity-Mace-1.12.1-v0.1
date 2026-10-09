@@ -1,3 +1,4 @@
+
 package com.gea69.velocitymace;
 
 import net.minecraft.core.particles.ParticleTypes;
@@ -6,7 +7,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -19,14 +19,9 @@ public final class ShockwaveHandler {
     private ShockwaveHandler() {
     }
 
-    public static void apply(
-            ShockwaveAttackContext.Hit hit
-    ) {
-        Entity attacker =
-                hit.attacker();
-
-        Entity primaryTarget =
-                hit.target();
+    public static void apply(ShockwaveAttackContext.Hit hit) {
+        Entity attacker = hit.attacker();
+        Entity primaryTarget = hit.target();
 
         if (attacker == null
                 || primaryTarget == null
@@ -39,10 +34,9 @@ public final class ShockwaveHandler {
             return;
         }
 
-        float multiplier =
-                Shockwave.getDamageMultiplier(
-                        hit.enchantmentLevel()
-                );
+        float multiplier = Shockwave.getDamageMultiplier(
+                hit.enchantmentLevel()
+        );
 
         if (multiplier <= 0.0F) {
             return;
@@ -56,34 +50,28 @@ public final class ShockwaveHandler {
             return;
         }
 
-        Vec3 center =
-                primaryTarget.position();
+        Vec3 center = primaryTarget.position();
 
-        playEffect(
-                level,
+        playEffect(level, primaryTarget, center);
+
+        AABB zone = primaryTarget.getBoundingBox()
+                .inflate(KNOCKBACK_ZONE_RADIUS);
+
+        List<Entity> nearbyEntities = level.getEntities(
                 primaryTarget,
-                center
+                zone,
+                entity ->
+                        entity != attacker
+                                && entity != primaryTarget
+                                && entity.isAlive()
+                                && entity.isAttackable()
         );
 
-        AABB zone =
-                primaryTarget.getBoundingBox()
-                        .inflate(KNOCKBACK_ZONE_RADIUS);
-
-        List<Entity> nearbyEntities =
-                level.getEntities(
-                        primaryTarget,
-                        zone,
-                        entity ->
-                                entity != primaryTarget
-                                        && entity.isAlive()
-                                        && entity.isAttackable()
-                );
-
-        DamageSource damageSource =
-                hit.damageSource();
+        DamageSource damageSource = hit.damageSource();
 
         for (Entity entity : nearbyEntities) {
-            if (entity == primaryTarget) {
+            // Explicitly exclude both participants in the original hit.
+            if (entity == attacker || entity == primaryTarget) {
                 continue;
             }
 
@@ -92,14 +80,10 @@ public final class ShockwaveHandler {
             }
 
             /*
-             * Each nearby entity receives the same pre-defense
-             * splash damage amount. Its own armor, resistance,
-             * and other defenses are applied by Minecraft.
+             * Nearby entities take the same pre-defense splash damage.
+             * Minecraft applies each entity's own defenses.
              */
-            entity.hurt(
-                    damageSource,
-                    shockwaveDamage
-            );
+            entity.hurt(damageSource, shockwaveDamage);
         }
     }
 
@@ -108,13 +92,8 @@ public final class ShockwaveHandler {
             Entity target,
             Vec3 center
     ) {
-        double y =
-                center.y + target.getBbHeight() * 0.5D;
+        double y = center.y + target.getBbHeight() * 0.5D;
 
-        /*
-         * Reuse the gust-emitter particles and wind-burst
-         * sound associated with vanilla Wind Burst.
-         */
         level.sendParticles(
                 ParticleTypes.GUST_EMITTER_LARGE,
                 center.x,
