@@ -1,19 +1,19 @@
-
 package com.gea69.velocitymace;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 public final class MeteorImpact {
+
     public static final ResourceKey<Enchantment> ENCHANTMENT =
             ResourceKey.create(
                     Registries.ENCHANTMENT,
                     ResourceLocation.fromNamespaceAndPath(
-                            "velocitymace", "meteor_impact"
+                            "velocitymace",
+                            "meteor_impact"
                     )
             );
 
@@ -21,12 +21,17 @@ public final class MeteorImpact {
     }
 
     public static int getLevel(ItemStack stack) {
-        if (stack == null || stack.isEmpty() || !stack.is(Items.MACE)) {
+        if (stack == null
+                || stack.isEmpty()
+                || !stack.is(MaceTags.MACE_ENCHANTABLE)) {
             return 0;
         }
 
-        return stack.getEnchantments().entrySet().stream()
-                .filter(entry -> entry.getKey().unwrapKey()
+        return stack.getEnchantments()
+                .entrySet()
+                .stream()
+                .filter(entry -> entry.getKey()
+                        .unwrapKey()
                         .map(ENCHANTMENT::equals)
                         .orElse(false))
                 .mapToInt(entry -> entry.getIntValue())
@@ -35,23 +40,35 @@ public final class MeteorImpact {
     }
 
     public static float getExplosionPower(double speedBlocksPerSecond) {
-        return (float) (6.0D * Math.min(speedBlocksPerSecond, 100.0D) / 100.0D);
+        return (float) (
+                6.0D * Math.min(speedBlocksPerSecond, 100.0D) / 100.0D
+        );
     }
 
     public static double getFireRadius(double speedBlocksPerSecond) {
-        return 10.4D * Math.min(speedBlocksPerSecond, 100.0D) / 100.0D;
+        return 10.4D
+                * Math.min(speedBlocksPerSecond, 100.0D)
+                / 100.0D;
     }
 
-    public static int getRawRecoilDamage(double maxHealth, double speedBlocksPerSecond) {
+    public static int getRawRecoilDamage(
+            double maxHealth,
+            double speedBlocksPerSecond
+    ) {
         if (maxHealth <= 1.0D) {
             return 0;
         }
 
         int damage = (int) Math.floor(
-                maxHealth * Math.min(speedBlocksPerSecond, 100.0D) / 100.0D
+                maxHealth
+                        * Math.min(speedBlocksPerSecond, 100.0D)
+                        / 100.0D
         );
 
-        return Math.max(1, Math.min(damage, (int) Math.ceil(maxHealth) - 1));
+        return Math.max(
+                1,
+                Math.min(damage, (int) Math.ceil(maxHealth) - 1)
+        );
     }
 
     public static double getMaximumRecoilReduction(int level) {

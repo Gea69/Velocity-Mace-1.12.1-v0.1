@@ -6,7 +6,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 public final class PrimedStrike {
@@ -24,23 +23,19 @@ public final class PrimedStrike {
     }
 
     public static int getLevel(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return 0;
-        }
-
-        if (!stack.is(Items.MACE)) {
+        if (stack == null
+                || stack.isEmpty()
+                || !stack.is(MaceTags.MACE_ENCHANTABLE)) {
             return 0;
         }
 
         return stack.getEnchantments()
                 .entrySet()
                 .stream()
-                .filter(entry ->
-                        entry.getKey()
-                                .unwrapKey()
-                                .map(key -> key.equals(ENCHANTMENT))
-                                .orElse(false)
-                )
+                .filter(entry -> entry.getKey()
+                        .unwrapKey()
+                        .map(ENCHANTMENT::equals)
+                        .orElse(false))
                 .mapToInt(entry -> entry.getIntValue())
                 .findFirst()
                 .orElse(0);
